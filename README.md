@@ -18,3 +18,6 @@ Example:
   SHARCarPhysicsObjectGenerator C:\input\car.p3d C:\output\car.p3d
   SHARCarPhysicsObjectGenerator --force --no_history C:\input\car.p3d
 ```
+
+# Credits
+A special thank you to [@EnAppelsin](https://github.com/EnAppelsin) for scary maths help.
