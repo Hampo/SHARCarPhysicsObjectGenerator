@@ -143,9 +143,9 @@ public static class PhysicsObjectGenerator
                 var massFactor = (1f / 12f) * mass;
 
                 float[,] inertia = new float[3, 3];
-                inertia[0, 0] = massFactor * (float)(Math.Pow(ey, 2) + Math.Pow(ez, 2));
-                inertia[1, 1] = massFactor * (float)(Math.Pow(ex, 2) + Math.Pow(ez, 2));
-                inertia[2, 2] = massFactor * (float)(Math.Pow(ex, 2) + Math.Pow(ey, 2));
+                inertia[0, 0] = massFactor * (MathF.Pow(ey, 2) + MathF.Pow(ez, 2));
+                inertia[1, 1] = massFactor * (MathF.Pow(ex, 2) + MathF.Pow(ez, 2));
+                inertia[2, 2] = massFactor * (MathF.Pow(ex, 2) + MathF.Pow(ey, 2));
 
                 var vectors = obb.GetChunksOfType<CollisionVectorChunk>();
                 if (vectors.Length != 4)
@@ -175,7 +175,7 @@ public static class PhysicsObjectGenerator
                 var radius = sphere.Radius;
                 var massFactor = (2f / 5f) * mass;
 
-                float inertiaValue = massFactor * (float)Math.Pow(radius, 2);
+                float inertiaValue = massFactor * MathF.Pow(radius, 2);
 
                 inertiaMatrix += new SymmetricMatrix3x3(inertiaValue, 0, 0, inertiaValue, 0, inertiaValue);
             }
@@ -185,8 +185,8 @@ public static class PhysicsObjectGenerator
                 float halfLength = cylinder.HalfLength;
                 float massFactor = mass;
 
-                float inertiaX = (1f / 12f) * massFactor * (3 * radius * radius + halfLength * halfLength);
-                float inertiaY = (1f / 2f) * massFactor * radius * radius;
+                float inertiaX = (1f / 12f) * massFactor * (3 * MathF.Pow(radius, 2) + MathF.Pow(halfLength, 2));
+                float inertiaY = (1f / 2f) * massFactor * MathF.Pow(radius, 2);
                 float inertiaZ = inertiaX;
 
                 var vectors = cylinder.GetChunksOfType<CollisionVectorChunk>();
