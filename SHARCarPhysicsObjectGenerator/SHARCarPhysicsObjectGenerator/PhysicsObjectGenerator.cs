@@ -59,11 +59,11 @@ public static class PhysicsObjectGenerator
                 {
                     physicsJoint.Volume += relevantVolumes.Sum(CalculateVolumeMass);
 
-                    var centerOfMass = CalculateCenterOfMass(relevantVolumes);
-                    var physicsVector = new PhysicsVectorChunk(centerOfMass);
+                    var centreOfMass = CalculatecentreOfMass(relevantVolumes);
+                    var physicsVector = new PhysicsVectorChunk(centreOfMass);
                     physicsJoint.Children.Add(physicsVector);
 
-                    var inertiaMatrix = CalculateInertiaMatrix(relevantVolumes);
+                    var inertiaMatrix = CalculateInertiaMatrix(relevantVolumes, centreOfMass);
                     var physicsInertiaMatrixChunk = new PhysicsInertiaMatrixChunk(inertiaMatrix);
                     physicsJoint.Children.Add(physicsInertiaMatrixChunk);
                 }
@@ -84,7 +84,7 @@ public static class PhysicsObjectGenerator
         return physicsObject;
     }
 
-    private static Vector3 CalculateCenterOfMass(List<CollisionVolumeChunk> volumes)
+    private static Vector3 CalculatecentreOfMass(List<CollisionVolumeChunk> volumes)
     {
         var totalMass = 0f;
         var weightedSum = Vector3.Zero;
@@ -104,54 +104,47 @@ public static class PhysicsObjectGenerator
 
     private static float CalculateVolumeMass(CollisionVolumeChunk volume)
     {
-        const float density = 1.0f;
-
         if (volume.Children.OfType<CollisionSphereChunk>().FirstOrDefault() is CollisionSphereChunk sphere)
-        {
-            return (4f / 3f) * MathF.PI * MathF.Pow(sphere.Radius, 3) * density;
-        }
+            return (4f / 3f) * MathF.PI * MathF.Pow(sphere.Radius, 3);
 
         if (volume.Children.OfType<CollisionOrientedBoundingBoxChunk>().FirstOrDefault() is CollisionOrientedBoundingBoxChunk obb)
-        {
-            return (8f * obb.HalfExtents.X * obb.HalfExtents.Y * obb.HalfExtents.Z) * density;
-        }
+            return (8f * obb.HalfExtents.X * obb.HalfExtents.Y * obb.HalfExtents.Z);
 
         if (volume.Children.OfType<CollisionCylinderChunk>().FirstOrDefault() is CollisionCylinderChunk cylinder)
-        {
-            return (MathF.PI * MathF.Pow(cylinder.Radius, 2) * (cylinder.HalfLength * 2)) * density;
-        }
+            return (MathF.PI * MathF.Pow(cylinder.Radius, 2) * (cylinder.HalfLength * 2));
 
         return 0f;
     }
 
-    private static SymmetricMatrix3x3 CalculateInertiaMatrix(List<CollisionVolumeChunk> volumes)
+    private static SymmetricMatrix3x3 CalculateInertiaMatrix(List<CollisionVolumeChunk> volumes, Vector3 centreOfMass)
     {
         var inertiaMatrix = new SymmetricMatrix3x3();
 
+        var totalMass = 0f;
         foreach (var volume in volumes)
         {
             var vector = volume.Children[0].GetFirstChunkOfType<CollisionVectorChunk>();
             if (vector == null) continue;
 
             var mass = CalculateVolumeMass(volume);
+            totalMass += mass;
 
             if (volume.GetFirstChunkOfType<CollisionOrientedBoundingBoxChunk>() is CollisionOrientedBoundingBoxChunk obb)
             {
-                float ex = obb.HalfExtents.X * 2;
-                float ey = obb.HalfExtents.Y * 2;
-                float ez = obb.HalfExtents.Z * 2;
-                var massFactor = (1f / 12f) * mass;
+                var ex = obb.HalfExtents.X * 2;
+                var ey = obb.HalfExtents.Y * 2;
+                var ez = obb.HalfExtents.Z * 2;
+                const float massFactor = (1f / 12f);
 
                 float[,] inertia = new float[3, 3];
-                inertia[0, 0] = massFactor * (MathF.Pow(ey, 2) + MathF.Pow(ez, 2));
-                inertia[1, 1] = massFactor * (MathF.Pow(ex, 2) + MathF.Pow(ez, 2));
-                inertia[2, 2] = massFactor * (MathF.Pow(ex, 2) + MathF.Pow(ey, 2));
+                inertia[0, 0] = massFactor * (ey * ey + ez * ez);
+                inertia[1, 1] = massFactor * (ex * ex + ez * ez);
+                inertia[2, 2] = massFactor * (ex * ex + ey * ey);
 
                 var vectors = obb.GetChunksOfType<CollisionVectorChunk>();
                 if (vectors.Length != 4)
-                {
-                    Debugger.Break();
-                }
+                    throw new InvalidDataException("A Collision Oriented Bounding Box Chunk does not have the correct number of sub vectors.");
+
                 var matrixX = vectors[1].Vector;
                 var matrixY = vectors[2].Vector;
                 var matrixZ = vectors[3].Vector;
@@ -163,67 +156,84 @@ public static class PhysicsObjectGenerator
                 };
 
                 var rotT = Transpose(rot);
-                float[,] inertiaRotated = Multiply(Multiply(rotT, inertia), rot);
-                inertiaMatrix += new SymmetricMatrix3x3(
+                var inertiaRotated = Multiply(Multiply(rotT, inertia), rot);
+
+                var localMatrix = new SymmetricMatrix3x3(
                     inertiaRotated[0, 0], inertiaRotated[0, 1], inertiaRotated[0, 2],
                     inertiaRotated[1, 1], inertiaRotated[1, 2],
                     inertiaRotated[2, 2]
                 );
+
+                var centre = vectors[0].Vector - centreOfMass;
+                var localMatrixTranslated = SymmetricMatrix3x3.Translate(localMatrix, centre);
+
+                inertiaMatrix += localMatrixTranslated;
             }
             else if (volume.GetFirstChunkOfType<CollisionSphereChunk>() is CollisionSphereChunk sphere)
             {
                 var radius = sphere.Radius;
-                var massFactor = (2f / 5f) * mass;
+                const float massFactor = (2f / 5f);
 
-                float inertiaValue = massFactor * MathF.Pow(radius, 2);
+                var inertiaValue = massFactor * radius * radius;
 
-                inertiaMatrix += new SymmetricMatrix3x3(inertiaValue, 0, 0, inertiaValue, 0, inertiaValue);
+                var vectors = sphere.GetChunksOfType<CollisionVectorChunk>();
+                if (vectors.Length != 1)
+                    throw new InvalidDataException("A Collision Sphere Chunk does not have the correct number of sub vectors.");
+
+                var localMatrix = new SymmetricMatrix3x3(inertiaValue, 0, 0, inertiaValue, 0, inertiaValue);
+
+                var centre = vectors[0].Vector - centreOfMass;
+                var localMatrixTranslated = SymmetricMatrix3x3.Translate(localMatrix, centre);
+
+                inertiaMatrix += localMatrixTranslated;
             }
             else if (volume.GetFirstChunkOfType<CollisionCylinderChunk>() is CollisionCylinderChunk cylinder)
             {
-                float radius = cylinder.Radius;
-                float halfLength = cylinder.HalfLength;
-                float massFactor = mass;
+                var radius = cylinder.Radius;
+                var halfLength = cylinder.HalfLength;
+                const float massFactor = 1f;
 
-                float inertiaX = (1f / 12f) * massFactor * (3 * MathF.Pow(radius, 2) + MathF.Pow(halfLength, 2));
-                float inertiaY = (1f / 2f) * massFactor * MathF.Pow(radius, 2);
-                float inertiaZ = inertiaX;
+                var inertiaX = (1f / 12f) * massFactor * (3 * radius * radius + halfLength * halfLength);
+                var inertiaY = (1f / 2f) * massFactor * radius * radius;
+                var inertiaZ = inertiaX;
 
                 var vectors = cylinder.GetChunksOfType<CollisionVectorChunk>();
-                if (vectors.Length == 2)
+                if (vectors.Length != 2)
+                    throw new InvalidDataException("A Collision Cylinder Chunk does not have the correct number of sub vectors.");
+
+                var direction = vectors[1];
+
+                var matrixX = direction.Vector;
+                var matrixY = direction.Vector;
+                var matrixZ = direction.Vector;
+
+                float[,] rot =
                 {
-                    var direction = vectors[1];
+                    { matrixX.X, matrixX.Y, matrixX.Z },
+                    { matrixY.X, matrixY.Y, matrixY.Z },
+                    { matrixZ.X, matrixZ.Y, matrixZ.Z },
+                };
 
-                    var matrixX = direction.Vector;
-                    var matrixY = direction.Vector;
-                    var matrixZ = direction.Vector;
-
-                    float[,] rot =
-                    {
-                        { matrixX.X, matrixX.Y, matrixX.Z },
-                        { matrixY.X, matrixY.Y, matrixY.Z },
-                        { matrixZ.X, matrixZ.Y, matrixZ.Z },
-                    };
-
-                    var rotT = Transpose(rot);
-                    float[,] inertiaMatrixLocal = new float[3, 3]
-                    {
-                        { inertiaX, 0, 0 },
-                        { 0, inertiaY, 0 },
-                        { 0, 0, inertiaZ }
-                    };
-
-                    float[,] inertiaRotated = Multiply(Multiply(rotT, inertiaMatrixLocal), rot);
-                    inertiaMatrix += new SymmetricMatrix3x3(
-                        inertiaRotated[0, 0], inertiaRotated[0, 1], inertiaRotated[0, 2],
-                        inertiaRotated[1, 1], inertiaRotated[1, 2],
-                        inertiaRotated[2, 2]
-                    );
-                }
-                else
+                var rotT = Transpose(rot);
+                var inertiaMatrixLocal = new float[3, 3]
                 {
-                    inertiaMatrix += new SymmetricMatrix3x3(inertiaX, 0, 0, inertiaY, 0, inertiaZ);
-                }
+                    { inertiaX, 0, 0 },
+                    { 0, inertiaY, 0 },
+                    { 0, 0, inertiaZ }
+                };
+
+                var inertiaRotated = Multiply(Multiply(rotT, inertiaMatrixLocal), rot);
+
+                var localMatrix = new SymmetricMatrix3x3(
+                    inertiaRotated[0, 0], inertiaRotated[0, 1], inertiaRotated[0, 2],
+                    inertiaRotated[1, 1], inertiaRotated[1, 2],
+                    inertiaRotated[2, 2]
+                );
+
+                var centre = vectors[0].Vector - centreOfMass;
+                var localMatrixTranslated = SymmetricMatrix3x3.Translate(localMatrix, centre);
+
+                inertiaMatrix += localMatrixTranslated;
             }
             else
             {
@@ -231,7 +241,7 @@ public static class PhysicsObjectGenerator
             }
         }
 
-        return inertiaMatrix;
+        return totalMass * inertiaMatrix;
     }
 
     private static float[,] Transpose(float[,] matrix)
@@ -273,4 +283,5 @@ public static class PhysicsObjectGenerator
 
         return result;
     }
+
 }
