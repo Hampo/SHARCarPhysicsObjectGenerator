@@ -136,31 +136,57 @@ Console.WriteLine($"No Remove: {noRemove}.");
 
 try
 {
-    string carName = Path.GetFileNameWithoutExtension(inputPath);
     NetP3DLib.P3D.P3DFile car = new(inputPath);
 
-    var compositeDrawable = car.GetFirstChunkOfType<CompositeDrawableChunk>(carName);
-    if (compositeDrawable == null)
+    var compositeDrawables = car.GetChunksOfType<CompositeDrawableChunk>();
+    if (compositeDrawables.Length == 0)
     {
-        Console.WriteLine($"Could not find Composite Drawable chunk with name: {carName}.");
+        Console.WriteLine($"Could not find any Composite Drawable chunks in file.");
         return;
     }
 
-    var skeleton = car.GetFirstChunkOfType<SkeletonChunk>(compositeDrawable.SkeletonName);
-    if (skeleton == null)
+    CompositeDrawableChunk? compositeDrawable = null;
+    if (compositeDrawables.Length == 1)
     {
-        Console.WriteLine($"Could not find Skeleton chunk with name: {compositeDrawable.SkeletonName}.");
-        return;
+        compositeDrawable = compositeDrawables[0];
     }
-    var skeletonBV = car.GetFirstChunkOfType<SkeletonChunk>($"{compositeDrawable.SkeletonName}BV") ?? skeleton;
+    else
+    {
+        string[] compositeDrawableNames = compositeDrawables.Select(x => x.Name).ToArray();
+        while (compositeDrawable == null)
+        {
+            Console.WriteLine("Multiple composite drawables found. Please pick from the following list:");
+            for (int i = 0; i < compositeDrawableNames.Length; i++)
+                Console.WriteLine($"\t[{i}] {compositeDrawableNames[i]}");
+            string? indexStr = Console.ReadLine();
+            if (!int.TryParse(indexStr, out var index) || index < 0 || index >= compositeDrawableNames.Length)
+            {
+                Console.WriteLine($"Invalid index specified. Please enter an index between 0 and {compositeDrawableNames.Length - 1}.");
+            }
+            else
+            {
+                compositeDrawable = compositeDrawables[index];
+            }
+        }
+    }
+    var carName = compositeDrawable.Name;
+    var skeletonName = compositeDrawable.SkeletonName;
 
-    var collisionObject = car.GetFirstChunkOfType<CollisionObjectChunk>(compositeDrawable.SkeletonName);
+    var skeleton = car.GetFirstChunkOfType<SkeletonChunk>(skeletonName);
     if (skeleton == null)
     {
-        Console.WriteLine($"Could not find Skeleton chunk with name: {compositeDrawable.SkeletonName}.");
+        Console.WriteLine($"Could not find Skeleton chunk with name: {skeletonName}.");
         return;
     }
-    var collisionObjectBV = car.GetFirstChunkOfType<CollisionObjectChunk>($"{compositeDrawable.SkeletonName}BV");
+    var skeletonBV = car.GetFirstChunkOfType<SkeletonChunk>($"{skeletonName}BV") ?? skeleton;
+
+    var collisionObject = car.GetFirstChunkOfType<CollisionObjectChunk>(skeletonName);
+    if (skeleton == null)
+    {
+        Console.WriteLine($"Could not find Skeleton chunk with name: {skeletonName}.");
+        return;
+    }
+    var collisionObjectBV = car.GetFirstChunkOfType<CollisionObjectChunk>($"{skeletonName}BV");
 
     var physicsObject = car.GetFirstChunkOfType<PhysicsObjectChunk>(carName);
     if (physicsObject != null)
