@@ -14,6 +14,7 @@
     <Version>1.1</Version>
     <Authors>Proddy</Authors>
     <Company>Donut Team</Company>
+    <Description>A CLI tool to automatically generate Physics Objects.</Description>
   </PropertyGroup>
 
   <ItemGroup>
