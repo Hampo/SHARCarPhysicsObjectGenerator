@@ -140,14 +140,14 @@ try
     P3DFile car = new(inputPath);
 
     var compositeDrawables = car.GetChunksOfType<CompositeDrawableChunk>();
-    if (compositeDrawables.Length == 0)
+    if (compositeDrawables.Count == 0)
     {
         Console.WriteLine($"Could not find any Composite Drawable chunks in file.");
         return;
     }
 
     CompositeDrawableChunk compositeDrawable;
-    if (compositeDrawables.Length == 1)
+    if (compositeDrawables.Count == 1)
     {
         compositeDrawable = compositeDrawables[0];
     }

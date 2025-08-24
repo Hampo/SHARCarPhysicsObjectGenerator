@@ -25,12 +25,12 @@ public static class PhysicsObjectGenerator
 
         var joints = skeleton.GetChunksOfType<SkeletonJointChunk>();
 
-        for (uint jointIndex = 0; jointIndex < joints.Length; jointIndex++)
+        for (int jointIndex = 0; jointIndex < joints.Count; jointIndex++)
         {
             var joint = joints[jointIndex];
             if (jointIndex == 0 || jointNames.Contains(joint.Name))
             {
-                var physicsJoint = new PhysicsJointChunk(jointIndex, 0, 0, 0, 0, 0);
+                var physicsJoint = new PhysicsJointChunk((uint)jointIndex, 0, 0, 0, 0, 0);
 
                 // YAY HARDCODING
                 switch (joint.Name)
@@ -41,13 +41,13 @@ public static class PhysicsObjectGenerator
                         physicsJoint.Stiffness = 0.8f;
                         physicsJoint.MinAngle = 0.0f;
                         physicsJoint.MaxAngle = 1.0f;
-                        physicsJoint.DOF = 1.0f;
+                        physicsJoint.DOF = 1;
                         break;
                     case "HoodRot":
                         physicsJoint.Stiffness = 0.5f;
                         physicsJoint.MinAngle = 0.0f;
                         physicsJoint.MaxAngle = 0.5f;
-                        physicsJoint.DOF = 1.0f;
+                        physicsJoint.DOF = 1;
                         break;
                 }
 
@@ -142,7 +142,7 @@ public static class PhysicsObjectGenerator
                 inertia[2, 2] = massFactor * (ex * ex + ey * ey);
 
                 var vectors = obb.GetChunksOfType<CollisionVectorChunk>();
-                if (vectors.Length != 4)
+                if (vectors.Count != 4)
                     throw new InvalidDataException("A Collision Oriented Bounding Box Chunk does not have the correct number of sub vectors.");
 
                 var matrixX = vectors[1].Vector;
@@ -177,7 +177,7 @@ public static class PhysicsObjectGenerator
                 var inertiaValue = massFactor * radius * radius;
 
                 var vectors = sphere.GetChunksOfType<CollisionVectorChunk>();
-                if (vectors.Length != 1)
+                if (vectors.Count != 1)
                     throw new InvalidDataException("A Collision Sphere Chunk does not have the correct number of sub vectors.");
 
                 var localMatrix = new SymmetricMatrix3x3(inertiaValue, 0, 0, inertiaValue, 0, inertiaValue);
@@ -198,7 +198,7 @@ public static class PhysicsObjectGenerator
                 var inertiaZ = inertiaX;
 
                 var vectors = cylinder.GetChunksOfType<CollisionVectorChunk>();
-                if (vectors.Length != 2)
+                if (vectors.Count != 2)
                     throw new InvalidDataException("A Collision Cylinder Chunk does not have the correct number of sub vectors.");
 
                 var direction = vectors[1];
