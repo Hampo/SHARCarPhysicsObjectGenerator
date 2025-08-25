@@ -30,7 +30,7 @@ public static class PhysicsObjectGenerator
             var joint = joints[jointIndex];
             if (jointIndex == 0 || jointNames.Contains(joint.Name))
             {
-                var physicsJoint = new PhysicsJointChunk(jointIndex, 0, 0, 0, 0, 0);
+                var physicsJoint = new PhysicsJointChunk(jointIndex, 0, 0, 0, 0, PhysicsJointChunk.DegreesOfFreedom.Fixed0D);
 
                 // YAY HARDCODING
                 switch (joint.Name)
